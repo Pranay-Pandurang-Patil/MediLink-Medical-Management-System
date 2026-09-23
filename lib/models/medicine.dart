@@ -28,6 +28,9 @@ class Medicine {
   @HiveField(7)
   final String description;
 
+  @HiveField(8, defaultValue: 0)
+  final int minimumStock;
+
   Medicine({
     required this.id,
     required this.name,
@@ -37,5 +40,6 @@ class Medicine {
     this.unit = '',
     required this.sellingPrice,
     this.description = '',
+    this.minimumStock = 0,
   });
 }

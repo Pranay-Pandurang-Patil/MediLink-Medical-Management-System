@@ -25,13 +25,14 @@ class MedicineAdapter extends TypeAdapter<Medicine> {
       unit: fields[5] as String,
       sellingPrice: fields[6] as double,
       description: fields[7] as String,
+      minimumStock: fields[8] == null ? 0 : fields[8] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, Medicine obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class MedicineAdapter extends TypeAdapter<Medicine> {
       ..writeByte(6)
       ..write(obj.sellingPrice)
       ..writeByte(7)
-      ..write(obj.description);
+      ..write(obj.description)
+      ..writeByte(8)
+      ..write(obj.minimumStock);
   }
 
   @override
