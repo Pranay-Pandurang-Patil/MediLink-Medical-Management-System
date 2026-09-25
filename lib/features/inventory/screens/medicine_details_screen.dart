@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:medilink/core/utils/expiry_utils.dart';
 import 'package:medilink/features/inventory/screens/add_batch_screen.dart';
 import 'package:medilink/models/medicine.dart';
 import 'package:medilink/models/medicine_batch.dart';
@@ -335,7 +335,6 @@ class _MedicineDetailsScreenState
     );
   }
 }
-
 class _BatchCard extends StatelessWidget {
   final MedicineBatch batch;
   final String formattedExpiry;
@@ -354,6 +353,36 @@ class _BatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isOutOfStock = batch.quantity == 0;
+
+    final ExpiryStatus expiryStatus =
+    ExpiryUtils.getStatus(batch.expiryDate);
+
+    final String expiryLabel =
+    ExpiryUtils.getLabel(batch.expiryDate);
+
+    final Color expiryColor;
+
+    switch (expiryStatus) {
+      case ExpiryStatus.expired:
+        expiryColor = Colors.red;
+        break;
+
+      case ExpiryStatus.critical:
+        expiryColor = Colors.orange;
+        break;
+
+      case ExpiryStatus.warning:
+        expiryColor = Colors.amber.shade800;
+        break;
+
+      case ExpiryStatus.upcoming:
+        expiryColor = Colors.blue;
+        break;
+
+      case ExpiryStatus.safe:
+        expiryColor = Colors.green;
+        break;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -374,6 +403,7 @@ class _BatchCard extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 IconButton(
                   onPressed: onDelete,
                   tooltip: 'Delete batch',
@@ -409,10 +439,12 @@ class _BatchCard extends StatelessWidget {
 
                 Expanded(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(
+                    margin:
+                    const EdgeInsets.symmetric(
                       horizontal: 12,
                     ),
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                    const EdgeInsets.symmetric(
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
@@ -429,9 +461,11 @@ class _BatchCard extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                            fontWeight:
+                            FontWeight.bold,
                           ),
                         ),
+
                         Text(
                           isOutOfStock
                               ? 'Out of Stock'
@@ -473,9 +507,12 @@ class _BatchCard extends StatelessWidget {
                   size: 18,
                   color: Colors.grey,
                 ),
+
                 const SizedBox(width: 6),
+
                 Text(
-                  'Batch Price: ₹${batch.purchasePrice.toStringAsFixed(2)}',
+                  'Batch Price: ₹'
+                      '${batch.purchasePrice.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 14,
                   ),
@@ -487,19 +524,56 @@ class _BatchCard extends StatelessWidget {
 
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.calendar_month_outlined,
                   size: 18,
-                  color: Colors.grey,
+                  color: expiryColor,
                 ),
+
                 const SizedBox(width: 6),
-                Text(
-                  'Expiry: $formattedExpiry',
-                  style: const TextStyle(
-                    fontSize: 14,
+
+                Expanded(
+                  child: Text(
+                    'Expiry: $formattedExpiry',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: expiryColor,
+                      fontWeight:
+                      expiryStatus ==
+                          ExpiryStatus.expired ||
+                          expiryStatus ==
+                              ExpiryStatus.critical
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
               ],
+            ),
+
+            const SizedBox(height: 6),
+
+            Container(
+              padding:
+              const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: expiryColor.withValues(
+                  alpha: 0.10,
+                ),
+                borderRadius:
+                BorderRadius.circular(20),
+              ),
+              child: Text(
+                expiryLabel,
+                style: TextStyle(
+                  color: expiryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -507,7 +581,6 @@ class _BatchCard extends StatelessWidget {
     );
   }
 }
-
 class _StockButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;

@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/splash/screens/splash_screen.dart';
 import 'models/medicine.dart';
 import 'models/medicine_batch.dart';
+import 'models/shop_profile.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,10 @@ Future<void> main() async {
 
   if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(MedicineBatchAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(2)) {
+    Hive.registerAdapter(ShopProfileAdapter());
   }
 
   runApp(const MyApp());
