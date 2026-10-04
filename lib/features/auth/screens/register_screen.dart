@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -23,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -34,19 +36,82 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _createAccount() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account details are valid'),
+          content: Text('Account created successfully.'),
         ),
       );
 
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (!mounted) return;
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
 
-        Navigator.pop(context);
-      });
+      String message = 'Registration failed. Please try again.';
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'An account already exists with this email.';
+          break;
+
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+
+        case 'weak-password':
+          message = 'Password is too weak. Use a stronger password.';
+          break;
+
+        case 'operation-not-allowed':
+          message = 'Email/password registration is not enabled.';
+          break;
+
+        case 'network-request-failed':
+          message = 'Network error. Please check your internet connection.';
+          break;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -68,33 +133,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 Lottie.asset(
                   'assets/animations/login_animation.json',
-                  height: 210,
-                  repeat: true,
+                  height: 220,
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 20),
 
                 Image.asset(
                   'assets/images/logo_icon.png',
-                  height: 95,
+                  height: 100,
                 ),
 
                 const SizedBox(height: 20),
 
                 const Text(
-                  'Create Owner Account',
-                  textAlign: TextAlign.center,
+                  'Create Account',
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
                   ),
                 ),
 
                 const SizedBox(height: 10),
 
                 const Text(
-                  'Create your account to manage your medical shop',
+                  'Join MediLink and manage your health with ease',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.grey,
@@ -106,12 +168,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 CustomTextField(
                   controller: nameController,
-                  labelText: 'Owner Name',
+                  labelText: 'Full Name',
                   hintText: 'Enter your full name',
                   prefixIcon: Icons.person_outline,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
+                      return 'Please enter your full name';
                     }
 
                     if (value.trim().length < 3) {
@@ -169,12 +231,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 CustomTextField(
                   controller: passwordController,
                   labelText: 'Password',
-                  hintText: 'Create a password',
+                  hintText: 'Enter your password',
                   prefixIcon: Icons.lock_outline,
                   obscureText: obscurePassword,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return 'Please enter your password';
                     }
 
                     if (value.length < 6) {
@@ -234,8 +296,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 25),
 
                 CustomButton(
-                  text: 'Create Account',
-                  onPressed: _createAccount,
+                  text: isLoading ? 'Creating Account...' : 'Create Account',
+                  onPressed: () {
+                    if (!isLoading) {
+                      _register();
+                    }
+                  },
+                ),
+                const SizedBox(height: 25),
+
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Divider(
+                        thickness: 1,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Divider(
+                        thickness: 1,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Google Sign-In will be implemented later.
+                    },
+                    icon: const Icon(
+                      Icons.g_mobiledata,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: Colors.grey.shade300,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 25),
@@ -244,7 +372,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Already have an owner account? ',
+                      'Already have an account? ',
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.black87,

@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'package:medilink/features/auth/screens/login_screen.dart';
 import 'package:medilink/models/shop_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -37,6 +39,7 @@ class _ProfileScreenState
   TextEditingController();
 
   bool isSaving = false;
+  bool isLoggingOut = false;
 
   @override
   void initState() {
@@ -161,6 +164,95 @@ class _ProfileScreenState
     }
   }
 
+  Future<void> _logout() async {
+    final bool? shouldLogout =
+    await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text(
+            'Are you sure you want to logout?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true) {
+      return;
+    }
+
+    setState(() {
+      isLoggingOut = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+          const LoginScreen(),
+        ),
+            (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Logout failed: ${e.message ?? 'Please try again.'}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Something went wrong while logging out.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoggingOut = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,7 +326,8 @@ class _ProfileScreenState
                 label: 'Phone',
                 hint: 'Enter phone number',
                 icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
+                keyboardType:
+                TextInputType.phone,
               ),
 
               const SizedBox(height: 18),
@@ -290,6 +383,43 @@ class _ProfileScreenState
                     isSaving
                         ? 'Saving...'
                         : 'Save Profile',
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed:
+                  isLoggingOut ? null : _logout,
+                  icon: isLoggingOut
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Icon(
+                    Icons.logout,
+                    color: Colors.red,
+                  ),
+                  label: Text(
+                    isLoggingOut
+                        ? 'Logging out...'
+                        : 'Logout',
+                    style: const TextStyle(
+                      color: Colors.red,
+                    ),
+                  ),
+                  style:
+                  OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ),

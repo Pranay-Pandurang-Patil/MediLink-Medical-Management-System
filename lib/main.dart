@@ -1,8 +1,10 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/splash/screens/splash_screen.dart';
+import 'firebase_options.dart';
 import 'models/medicine.dart';
 import 'models/medicine_batch.dart';
 import 'models/shop_profile.dart';
@@ -24,6 +26,11 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(ShopProfileAdapter());
   }
+
+  // Initialize Firebase.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
