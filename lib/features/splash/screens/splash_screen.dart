@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+
 import 'package:medilink/features/auth/screens/login_screen.dart';
+import 'package:medilink/features/dashboard/screens/main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,23 +13,45 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _isNavigating = false;
+
   @override
   void initState() {
     super.initState();
+    _checkAuthentication();
+  }
 
-    Future.delayed(
-      const Duration(seconds: 4),
-          () {
-        if (!mounted) return;
+  Future<void> _checkAuthentication() async {
+    // Give Firebase time to restore the authentication session.
+    await Future.delayed(const Duration(seconds: 2));
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
-        );
-      },
+    if (!mounted || _isNavigating) return;
+
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    debugPrint(
+      'MediLink Firebase user: ${user?.email ?? 'NO USER'}',
     );
+
+    _isNavigating = true;
+
+    if (user != null) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const MainScreen(),
+        ),
+            (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+        ),
+            (route) => false,
+      );
+    }
   }
 
   @override
@@ -34,59 +59,46 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 140,
-                  height: 140,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Image.asset(
-                    'assets/images/logo_full.png',
-                    fit: BoxFit.contain,
-                  ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo_full.png',
+                width: 220,
+              ),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'MediLink',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
 
-                const SizedBox(height: 20),
+              const SizedBox(height: 8),
 
-                const Text(
-                  'MediLink',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+              const Text(
+                'Smart Medical Shop Management',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey,
                 ),
+              ),
 
-                const SizedBox(height: 10),
+              const SizedBox(height: 32),
 
-                const Text(
-                  'Medical Shop Management',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: Lottie.asset(
+                  'assets/animations/Pulse.json',
+                  repeat: true,
                 ),
-
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: 100,
-                  height: 100,
-                  child: Lottie.asset(
-                    'assets/animations/Pulse.json',
-                    repeat: true,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
