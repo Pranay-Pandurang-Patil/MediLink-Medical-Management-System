@@ -100,11 +100,6 @@ It motivates continued development and helps others discover the project.
 
 ---
 
-<p align="center">
-Made with ❤️ using Flutter
-</p>
-
----
 
 ## 📜 License
 
