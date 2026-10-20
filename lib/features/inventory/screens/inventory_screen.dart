@@ -27,7 +27,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   String selectedStockFilter = 'All';
 
   String selectedExpiryFilter = 'All';
-
+  String selectedSortOption = 'Name (A–Z)';
   final List<String> stockFilters = [
     'All',
     'In Stock',
@@ -42,6 +42,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     '31–60 Days',
     '61–90 Days',
     'Safe',
+  ];
+  final List<String> sortOptions = [
+    'Name (A–Z)',
+    'Name (Z–A)',
+    'Price (Low–High)',
+    'Price (High–Low)',
+    'Stock (Low–High)',
+    'Stock (High–Low)',
+    'Earliest Expiry',
   ];
 
   @override
@@ -302,7 +311,58 @@ class _InventoryScreenState extends State<InventoryScreen> {
         return null;
     }
   }
+  void _sortMedicines(List<Medicine> medicines) {
+    medicines.sort((a, b) {
+      switch (selectedSortOption) {
+        case 'Name (Z–A)':
+          return b.name.toLowerCase().compareTo(
+            a.name.toLowerCase(),
+          );
 
+        case 'Price (Low–High)':
+          return a.sellingPrice.compareTo(b.sellingPrice);
+
+        case 'Price (High–Low)':
+          return b.sellingPrice.compareTo(a.sellingPrice);
+
+        case 'Stock (Low–High)':
+          return _getStock(a).compareTo(_getStock(b));
+
+        case 'Stock (High–Low)':
+          return _getStock(b).compareTo(_getStock(a));
+
+        case 'Earliest Expiry':
+          return _getEarliestExpiry(a).compareTo(
+            _getEarliestExpiry(b),
+          );
+
+        case 'Name (A–Z)':
+        default:
+          return a.name.toLowerCase().compareTo(
+            b.name.toLowerCase(),
+          );
+      }
+    });
+  }
+
+  int _getStock(Medicine medicine) {
+    return batchService
+        .getBatchesForMedicine(medicine.id)
+        .fold<int>(0, (total, batch) => total + batch.quantity);
+  }
+
+  DateTime _getEarliestExpiry(Medicine medicine) {
+    final batches =
+    batchService.getBatchesForMedicine(medicine.id);
+
+    if (batches.isEmpty) {
+      return DateTime(9999);
+    }
+
+    return batches
+        .map((batch) => batch.expiryDate)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+  }
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
@@ -348,6 +408,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 );
           },
         ).toList();
+
+        // Sort the medicines after applying search and filters.
+        _sortMedicines(medicines);
 
         return Scaffold(
           appBar: AppBar(
@@ -463,6 +526,42 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         });
                       },
                     );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Sorting options
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedSortOption,
+                  decoration: InputDecoration(
+                    labelText: 'Sort inventory by',
+                    prefixIcon: const Icon(Icons.sort),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                  items: sortOptions.map((option) {
+                    return DropdownMenuItem<String>(
+                      value: option,
+                      child: Text(option),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      selectedSortOption = value;
+                    });
                   },
                 ),
               ),
