@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medilink/services/backup_service.dart';
+import 'package:medilink/services/owner_data_service.dart';
+import 'package:medilink/services/data_migration_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:medilink/features/auth/screens/login_screen.dart';
@@ -43,6 +45,7 @@ class _ProfileScreenState
   bool isSaving = false;
   bool isLoggingOut = false;
   bool isBackingUp = false;
+  bool isMigrating = false;
 
   @override
   void initState() {
@@ -52,8 +55,9 @@ class _ProfileScreenState
   }
 
   Future<void> _loadProfile() async {
-    final box =
-    await Hive.openBox<ShopProfile>('shop_profile');
+    final box = await Hive.openBox<ShopProfile>(
+      OwnerDataService.instance.shopProfileBoxName,
+    );
 
     if (box.isNotEmpty) {
       final profile = box.getAt(0);
@@ -110,9 +114,8 @@ class _ProfileScreenState
     });
 
     try {
-      final box =
-      await Hive.openBox<ShopProfile>(
-        'shop_profile',
+      final box = await Hive.openBox<ShopProfile>(
+        OwnerDataService.instance.shopProfileBoxName,
       );
 
       final profile = ShopProfile(
@@ -168,6 +171,62 @@ class _ProfileScreenState
   }
 
 
+
+  Future<void> _migrateLegacyData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Migrate existing MediLink data?'),
+        content: const Text(
+          'This copies existing shared medicines, batches, and shop profile records into the currently signed-in owner’s storage. Continue only if these old records belong to this owner. The original shared records will not be deleted. If this owner already has data in the new storage, migration will stop rather than overwrite it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm migration'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    setState(() => isMigrating = true);
+    try {
+      final result = await DataMigrationService()
+          .migrateLegacyDataToCurrentOwner(confirmLegacyOwnership: true);
+      if (result.alreadyMigrated) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Legacy data has already been migrated for this owner.')),
+          );
+        }
+      } else {
+        await _loadProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(
+              'Migration verified: ${result.medicinesCopied} medicines, '
+                  '${result.batchesCopied} batches, and ${result.profilesCopied} shop profiles copied. '
+                  'Original legacy records were preserved.',
+            )),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Migration stopped: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isMigrating = false);
+    }
+  }
+
   Future<void> _createBackup() async {
     setState(() => isBackingUp = true);
     try {
@@ -178,7 +237,7 @@ class _ProfileScreenState
         builder: (dialogContext) => AlertDialog(
           title: const Text('Backup created'),
           content: const Text(
-            'Your owner-specific medicines, batches, and shop profile have been prepared as JSON. Copy the backup text and save it somewhere safe.',
+            'Your medicines, batches, shop profile, daily notes, regular customers, frequently purchased medicines, and payment records have been prepared as JSON. Copy the backup text and save it somewhere safe.',
           ),
           actions: [
             TextButton(
@@ -248,7 +307,7 @@ class _ProfileScreenState
       final result = await BackupService().restoreBackupJson(controller.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore completed: ${result.medicinesRestored} medicines, ${result.batchesRestored} batches${result.shopProfileRestored ? ', shop profile restored' : ''}.')),
+          SnackBar(content: Text('Restore completed: ${result.medicinesRestored} medicines, ${result.batchesRestored} batches, ${result.notesRestored} notes, ${result.customersRestored} customers, ${result.customerMedicinesRestored} frequent-medicine records, and ${result.paymentsRestored} payments${result.shopProfileRestored ? ', shop profile restored' : ''}.')),
         );
       }
       // Reload profile fields after a restore.
@@ -485,6 +544,32 @@ class _ProfileScreenState
                 ),
               ),
 
+              const SizedBox(height: 18),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Legacy Data Migration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      const Text('Use this only if your existing shared inventory and shop profile belong to the currently signed-in owner. Migration copies records and preserves the original shared data.'),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: isMigrating ? null : _migrateLegacyData,
+                          icon: isMigrating
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.move_to_inbox_outlined),
+                          label: Text(isMigrating ? 'Migrating...' : 'Migrate Existing Data'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 18),
 
               Card(

@@ -15,22 +15,35 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int currentIndex = 0;
-
-  late final List<Widget> screens = [
-    const DashboardScreen(),
-    const InventoryScreen(),
-    const NotesScreen(),
-    const AlertsScreen(),
-    const ProfileScreen(),
-  ];
+  int _notesRefreshKey = 0;
 
   @override
   Widget build(BuildContext context) {
+    final screens = <Widget>[
+      const DashboardScreen(),
+      const InventoryScreen(),
+      NotesScreen(key: ValueKey('notes-$_notesRefreshKey')),
+      const AlertsScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: currentIndex, children: screens),
+      body: IndexedStack(
+        index: currentIndex,
+        children: screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
-        onDestinationSelected: (index) => setState(() => currentIndex = index),
+        onDestinationSelected: (index) {
+          setState(() {
+            // IndexedStack keeps inactive screens alive. Give NotesScreen a new
+            // key whenever its tab is selected so its Hive query runs again.
+            if (index == 2 && index != currentIndex) {
+              _notesRefreshKey++;
+            }
+            currentIndex = index;
+          });
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
