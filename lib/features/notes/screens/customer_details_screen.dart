@@ -418,18 +418,59 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ),
                   ),
                 ),
-                Card(
-                  child: ListTile(
-                    title: const Text('Outstanding balance'),
-                    subtitle: const Text('Total unpaid amount across records'),
-                    trailing: Text(
-                      '₹${details.balance.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: details.balance > 0 ? Colors.red : Colors.green,
+                Builder(
+                  builder: (context) {
+                    final totalAmount = details.payments.fold<double>(
+                      0,
+                          (sum, payment) => sum + payment.totalAmount,
+                    );
+                    final paidAmount = details.payments.fold<double>(
+                      0,
+                          (sum, payment) => sum + payment.paidAmount,
+                    );
+
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Payment summary',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PaymentSummaryValue(
+                                    label: 'Total',
+                                    amount: totalAmount,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _PaymentSummaryValue(
+                                    label: 'Paid',
+                                    amount: paidAmount,
+                                    valueColor: Colors.green,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _PaymentSummaryValue(
+                                    label: 'Remaining',
+                                    amount: details.balance,
+                                    valueColor: details.balance > 0
+                                        ? Colors.red
+                                        : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -528,6 +569,36 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   @override
   void dispose() {
     super.dispose();
+  }
+}
+
+class _PaymentSummaryValue extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color? valueColor;
+
+  const _PaymentSummaryValue({
+    required this.label,
+    required this.amount,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
+        Text(
+          '₹${amount.toStringAsFixed(2)}',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: valueColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 }
 
