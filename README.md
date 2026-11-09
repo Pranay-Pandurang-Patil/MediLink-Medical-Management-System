@@ -129,13 +129,12 @@ Used for storing application data such as:
 - Medicine batches.
 - Stock information.
 - Expiry-related records.
-- Shop information.
-- Daily notes.
+- Shop information and Daily notes.
 - Regular customer records.
 - Customer medicine records.
 - Customer payment records.
 
-Essential medicine and inventory data is designed to remain accessible offline.
+Essential medicine with inventory data is designed to remain accessible offline.
 
 ---
 
@@ -234,7 +233,7 @@ Configure the required Firebase project and platform-specific authentication set
 flutter run
 ```
 
-**Note:** This public repository is a showcase version. Selected production implementation, configuration files, and business logic are intentionally excluded. Consequently, the public repository may not be independently runnable.
+**Note:** This public repository is a showcase version. Selected production implementation, configuration files, and business logic are intentionally excluded. Consequently the public repository may not be independently runnable.
 
 ---
 
