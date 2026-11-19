@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -16,10 +17,15 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController emailController =
+  TextEditingController();
+
+  final TextEditingController passwordController =
+  TextEditingController();
 
   bool obscurePassword = true;
+  bool isLoading = false;
+  bool isResettingPassword = false;
 
   @override
   void dispose() {
@@ -28,25 +34,203 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    if (_formKey.currentState!.validate()) {
-      Navigator.pushReplacement(
+  // ---------------- LOGIN ----------------
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
           builder: (context) => const MainScreen(),
         ),
+            (route) => false,
       );
+    } on FirebaseAuthException catch (e) {
+      String message;
+
+      switch (e.code) {
+        case 'invalid-credential':
+          message = 'Invalid email or password.';
+          break;
+
+        case 'user-not-found':
+          message = 'No account found with this email.';
+          break;
+
+        case 'wrong-password':
+          message = 'Incorrect password.';
+          break;
+
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+
+        case 'user-disabled':
+          message = 'This account has been disabled.';
+          break;
+
+        case 'network-request-failed':
+          message = 'Please check your internet connection.';
+          break;
+
+        case 'too-many-requests':
+          message = 'Too many attempts. Please try again later.';
+          break;
+
+        default:
+          message = 'Login failed. Please try again.';
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Something went wrong. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
-  void _openRegisterScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const RegisterScreen(),
-      ),
-    );
+  // ---------------- FORGOT PASSWORD ----------------
+
+  Future<void> _forgotPassword() async {
+    final email = emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enter your email address first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter a valid email address.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isResettingPassword = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Password reset email sent. Check your inbox.',
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message;
+
+      switch (e.code) {
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+
+        case 'user-not-found':
+          message = 'No account found with this email.';
+          break;
+
+        case 'network-request-failed':
+          message = 'Please check your internet connection.';
+          break;
+
+        case 'too-many-requests':
+          message = 'Too many requests. Please try again later.';
+          break;
+
+        default:
+          message =
+          'Unable to send reset email. Please try again.';
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Something went wrong. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isResettingPassword = false;
+        });
+      }
+    }
   }
+
+  // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
@@ -61,17 +245,15 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
 
                 Lottie.asset(
                   'assets/animations/login_animation.json',
                   height: 220,
-                  repeat: true,
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
 
                 Image.asset(
                   'assets/images/logo_icon.png',
@@ -85,18 +267,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
 
                 const Text(
-                  'Sign in to manage your medical shop',
+                  'Login to manage your medical shop',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
                     color: Colors.grey,
+                    fontSize: 16,
                   ),
                 ),
 
@@ -109,11 +290,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
 
-                    if (!value.contains('@') || !value.contains('.')) {
+                    if (!value.contains('@') ||
+                        !value.contains('.')) {
                       return 'Please enter a valid email';
                     }
 
@@ -154,45 +337,126 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // TODO: Forgot password
-                    },
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        fontSize: 15,
+                    onPressed:
+                    isResettingPassword
+                        ? null
+                        : _forgotPassword,
+                    child: Text(
+                      isResettingPassword
+                          ? 'Sending...'
+                          : 'Forgot Password?',
+                      style: const TextStyle(
+                        color: Colors.green,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
 
                 CustomButton(
-                  text: 'Login',
-                  onPressed: _login,
+                  text: isLoading
+                      ? 'Logging in...'
+                      : 'Login',
+                  onPressed: () {
+                    if (!isLoading) {
+                      _login();
+                    }
+                  },
                 ),
 
                 const SizedBox(height: 25),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Expanded(
+                      child: Divider(
+                        thickness: 1,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Divider(
+                        thickness: 1,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Google Login will be implemented later.
+                    },
+                    icon: const Icon(
+                      Icons.g_mobiledata,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: Colors.grey.shade300,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                Row(
+                  mainAxisAlignment:
+                  MainAxisAlignment.center,
                   children: [
                     const Text(
-                      "Don't have an owner account? ",
+                      'Don\'t have an account? ',
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.black87,
                       ),
                     ),
                     GestureDetector(
-                      onTap: _openRegisterScreen,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                            const RegisterScreen(),
+                          ),
+                        );
+                      },
                       child: const Text(
                         'Create Account',
                         style: TextStyle(
