@@ -163,9 +163,9 @@ Essential medicine with inventory data is designed to remain accessible offline.
 | 3 | Expiry and stock alerts | 🟡 Implemented; testing ongoing |
 | 4 | Daily Notes | ✅ Implemented |
 | 5 | Regular Customers | ✅ Implemented |
-| 6 | Customer medicines and payment management | 🟡 Implemented; testing ongoing |
-| 7 | CSV import and export | 🔄 Planned |
-| 8 | Backup and restore | 🔄 Planned |
+| 6 | Customer medicines and payment management | ✅ Implemented |
+| 7 | CSV import and export | ✅ Implemented|
+| 8 | Backup and restore | ✅ Implemented |
 | 9 | Functional testing and UI/UX refinement | 🔄 Ongoing |
 | 10 | Documentation and production preparation | 🔄 Planned |
 
