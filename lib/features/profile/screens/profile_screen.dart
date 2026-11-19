@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,7 +50,7 @@ class _ProfileScreenState
   bool isLoggingOut = false;
   bool isBackingUp = false;
   bool isMigrating = false;
-
+  bool isRestoring = false;
   @override
   void initState() {
     super.initState();
@@ -228,37 +232,38 @@ class _ProfileScreenState
   }
 
   Future<void> _createBackup() async {
+    if (isBackingUp) return;
+
     setState(() => isBackingUp = true);
     try {
       final json = await BackupService().createBackupJson();
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Backup created'),
-          content: const Text(
-            'Your medicines, batches, shop profile, daily notes, regular customers, frequently purchased medicines, and payment records have been prepared as JSON. Copy the backup text and save it somewhere safe.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Close'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.copy),
-              label: const Text('Copy backup'),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: json));
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Backup JSON copied to clipboard. Save it in a secure location.')),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
+
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final fileName = 'medilink_backup_$timestamp.json';
+
+      final savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save MediLink backup',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: Uint8List.fromList(utf8.encode(json)),
+      );
+
+      if (!mounted) return;
+      if (savedPath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup export cancelled.')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup file created successfully: $savedPath')),
       );
     } catch (e) {
       if (mounted) {
@@ -272,52 +277,80 @@ class _ProfileScreenState
   }
 
   Future<void> _restoreBackup() async {
-    final controller = TextEditingController();
-    final shouldRestore = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Restore backup'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Paste the complete MediLink backup JSON below. Matching record IDs will be updated; unrelated records will be preserved.'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                minLines: 5,
-                maxLines: 10,
-                decoration: const InputDecoration(
-                  hintText: 'Paste backup JSON here',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Restore')),
-        ],
-      ),
-    );
-    if (shouldRestore != true) { controller.dispose(); return; }
+    if (isRestoring) return;
+
     try {
-      final result = await BackupService().restoreBackupJson(controller.text.trim());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore completed: ${result.medicinesRestored} medicines, ${result.batchesRestored} batches, ${result.notesRestored} notes, ${result.customersRestored} customers, ${result.customerMedicinesRestored} frequent-medicine records, and ${result.paymentsRestored} payments${result.shopProfileRestored ? ', shop profile restored' : ''}.')),
+      final selection = await FilePicker.platform.pickFiles(
+        dialogTitle: 'Select MediLink backup',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (!mounted || selection == null || selection.files.isEmpty) return;
+
+      final selectedFile = selection.files.single;
+      final bytes = selectedFile.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw const FormatException(
+          'The selected backup file could not be read.',
         );
       }
-      // Reload profile fields after a restore.
+
+      final backupJson = utf8.decode(bytes);
+      final shouldRestore = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Confirm backup restore'),
+          content: Text(
+            'Restore data from "${selectedFile.name}"?\n\n'
+                'Records with matching IDs will be updated. Existing unrelated '
+                'records will be preserved. The backup must belong to the '
+                'currently signed-in owner.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Restore'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted || shouldRestore != true) return;
+
+      setState(() => isRestoring = true);
+      final result = await BackupService().restoreBackupJson(backupJson);
+
       await _loadProfile();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restore completed: ${result.medicinesRestored} medicines, '
+                '${result.batchesRestored} batches, '
+                '${result.notesRestored} notes, '
+                '${result.customersRestored} customers, '
+                '${result.customerMedicinesRestored} frequent-medicine records, '
+                'and ${result.paymentsRestored} payments'
+                '${result.shopProfileRestored ? ', shop profile restored' : ''}.',
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restore failed: $e')),
+        );
       }
     } finally {
-      controller.dispose();
+      if (mounted) setState(() => isRestoring = false);
     }
   }
 
@@ -580,21 +613,21 @@ class _ProfileScreenState
                     children: [
                       const Text('Data Backup & Restore', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
-                      const Text('Create a portable JSON backup or restore a backup for the currently signed-in owner.'),
+                      const Text('Export all owner data to a JSON file or restore a previously exported backup belonging to the currently signed-in owner.'),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: isBackingUp ? null : _createBackup,
+                          onPressed: (isBackingUp || isRestoring) ? null : _createBackup,
                           icon: isBackingUp ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.backup_outlined),
-                          label: Text(isBackingUp ? 'Preparing backup...' : 'Create Backup'),
+                          label: Text(isBackingUp ? 'Creating backup...' : 'Export Backup File'),
                         ),
                       ),
                       const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: _restoreBackup,
+                          onPressed: (isBackingUp || isRestoring) ? null : _restoreBackup,
                           icon: const Icon(Icons.restore),
                           label: const Text('Restore Backup'),
                         ),

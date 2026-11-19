@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:medilink/features/alerts/screens/alerts_screen.dart';
 import 'package:medilink/features/inventory/screens/inventory_screen.dart';
 import 'package:medilink/features/notes/screens/notes_screen.dart';
@@ -15,15 +16,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int currentIndex = 0;
-  int _notesRefreshKey = 0;
+
+  int _dashboardKey = 0;
+  int _inventoryKey = 0;
+  int _notesKey = 0;
+  int _alertsKey = 0;
 
   @override
   Widget build(BuildContext context) {
     final screens = <Widget>[
-      const DashboardScreen(),
-      const InventoryScreen(),
-      NotesScreen(key: ValueKey('notes-$_notesRefreshKey')),
-      const AlertsScreen(),
+      DashboardScreen(key: ValueKey(_dashboardKey)),
+      InventoryScreen(key: ValueKey(_inventoryKey)),
+      NotesScreen(key: ValueKey(_notesKey)),
+      AlertsScreen(key: ValueKey(_alertsKey)),
       const ProfileScreen(),
     ];
 
@@ -36,11 +41,25 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
           setState(() {
-            // IndexedStack keeps inactive screens alive. Give NotesScreen a new
-            // key whenever its tab is selected so its Hive query runs again.
-            if (index == 2 && index != currentIndex) {
-              _notesRefreshKey++;
+            if (index == currentIndex) {
+              return;
             }
+
+            switch (index) {
+              case 0:
+                _dashboardKey++;
+                break;
+              case 1:
+                _inventoryKey++;
+                break;
+              case 2:
+                _notesKey++;
+                break;
+              case 3:
+                _alertsKey++;
+                break;
+            }
+
             currentIndex = index;
           });
         },

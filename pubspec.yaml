@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  file_picker: ^8.1.7
   cupertino_icons: ^1.0.8
   lottie: ^3.3.2
   hive: ^2.2.3

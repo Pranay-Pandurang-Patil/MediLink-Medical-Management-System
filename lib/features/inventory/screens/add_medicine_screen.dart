@@ -63,11 +63,16 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       manufacturerController.text = medicine.manufacturer;
       categoryController.text = medicine.category;
       unitController.text = medicine.unit;
+
       priceController.text =
           medicine.sellingPrice.toStringAsFixed(2);
+
       minimumStockController.text =
           medicine.minimumStock.toString();
+
       descriptionController.text = medicine.description;
+    } else {
+      minimumStockController.text = '0';
     }
   }
 
@@ -85,7 +90,45 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     super.dispose();
   }
 
+  String? _validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter medicine name';
+    }
+
+    return null;
+  }
+
+  String? _validatePrice(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter selling price';
+    }
+
+    final price = double.tryParse(value.trim());
+
+    if (price == null || !price.isFinite || price < 0) {
+      return 'Please enter a valid price';
+    }
+
+    return null;
+  }
+
+  String? _validateMinimumStock(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    final minimumStock = int.tryParse(value.trim());
+
+    if (minimumStock == null || minimumStock < 0) {
+      return 'Please enter a valid quantity';
+    }
+
+    return null;
+  }
+
   Future<void> _saveMedicine() async {
+    if (isSaving) return;
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -99,34 +142,27 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
       final medicine = Medicine(
         id: widget.medicine?.id ??
-            DateTime.now()
-                .millisecondsSinceEpoch
-                .toString(),
+            DateTime.now().microsecondsSinceEpoch.toString(),
 
         name: nameController.text.trim(),
 
-        genericName:
-        genericNameController.text.trim(),
+        genericName: genericNameController.text.trim(),
 
-        manufacturer:
-        manufacturerController.text.trim(),
+        manufacturer: manufacturerController.text.trim(),
 
-        category:
-        categoryController.text.trim(),
+        category: categoryController.text.trim(),
 
-        unit:
-        unitController.text.trim(),
+        unit: unitController.text.trim(),
 
-        sellingPrice:
-        double.parse(priceController.text.trim()),
-
-        description:
-        descriptionController.text.trim(),
-
-        minimumStock:
-        int.parse(
-          minimumStockController.text.trim(),
+        sellingPrice: double.parse(
+          priceController.text.trim(),
         ),
+
+        description: descriptionController.text.trim(),
+
+        minimumStock: minimumStockController.text.trim().isEmpty
+            ? 0
+            : int.parse(minimumStockController.text.trim()),
       );
 
       await medicineService.box.put(
@@ -134,9 +170,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
         medicine,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -150,15 +184,11 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
       Navigator.pop(context);
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Failed to save medicine: $e',
-          ),
+          content: Text('Failed to save medicine: $e'),
         ),
       );
     } finally {
@@ -175,28 +205,18 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isEditing
-              ? 'Edit Medicine'
-              : 'Add Medicine',
+          isEditing ? 'Edit Medicine' : 'Add Medicine',
         ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-
         child: Form(
           key: _formKey,
-
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isEditing
-                    ? 'Update Medicine'
-                    : 'Add New Medicine',
-
+                isEditing ? 'Update Medicine' : 'Add New Medicine',
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -209,7 +229,6 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 isEditing
                     ? 'Update medicine information'
                     : 'Enter medicine information',
-
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 15,
@@ -223,15 +242,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 labelText: 'Medicine Name',
                 hintText: 'Enter medicine name',
                 prefixIcon: Icons.medication_outlined,
-
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return 'Please enter medicine name';
-                  }
-
-                  return null;
-                },
+                validator: _validateName,
               ),
 
               const SizedBox(height: 18),
@@ -249,8 +260,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 controller: manufacturerController,
                 labelText: 'Manufacturer',
                 hintText: 'Enter manufacturer',
-                prefixIcon:
-                Icons.business_outlined,
+                prefixIcon: Icons.business_outlined,
               ),
 
               const SizedBox(height: 18),
@@ -259,8 +269,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 controller: categoryController,
                 labelText: 'Category',
                 hintText: 'e.g. Tablet, Syrup, Capsule',
-                prefixIcon:
-                Icons.category_outlined,
+                prefixIcon: Icons.category_outlined,
               ),
 
               const SizedBox(height: 18),
@@ -269,8 +278,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 controller: unitController,
                 labelText: 'Unit / Pack',
                 hintText: 'e.g. 10 tablets',
-                prefixIcon:
-                Icons.inventory_2_outlined,
+                prefixIcon: Icons.inventory_2_outlined,
               ),
 
               const SizedBox(height: 18),
@@ -279,64 +287,23 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 controller: priceController,
                 labelText: 'Selling Price',
                 hintText: 'Enter selling price',
-                prefixIcon:
-                Icons.currency_rupee,
+                prefixIcon: Icons.currency_rupee,
                 keyboardType:
                 const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return 'Please enter selling price';
-                  }
-
-                  final price =
-                  double.tryParse(
-                    value.trim(),
-                  );
-
-                  if (price == null ||
-                      price < 0) {
-                    return 'Please enter a valid price';
-                  }
-
-                  return null;
-                },
+                validator: _validatePrice,
               ),
 
               const SizedBox(height: 18),
 
               CustomTextField(
-                controller:
-                minimumStockController,
+                controller: minimumStockController,
                 labelText: 'Minimum Stock',
-                hintText:
-                'Alert when stock reaches this level',
-                prefixIcon:
-                Icons.warning_amber_outlined,
-                keyboardType:
-                TextInputType.number,
-
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return 'Please enter minimum stock';
-                  }
-
-                  final minimumStock =
-                  int.tryParse(
-                    value.trim(),
-                  );
-
-                  if (minimumStock == null ||
-                      minimumStock < 0) {
-                    return 'Please enter a valid quantity';
-                  }
-
-                  return null;
-                },
+                hintText: 'Alert when stock reaches this level',
+                prefixIcon: Icons.warning_amber_outlined,
+                keyboardType: TextInputType.number,
+                validator: _validateMinimumStock,
               ),
 
               const SizedBox(height: 18),
@@ -364,14 +331,10 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     : isEditing
                     ? 'Update Medicine'
                     : 'Save Medicine',
-
                 icon: isEditing
                     ? Icons.save_outlined
                     : Icons.add,
-
-                onPressed: isSaving
-                    ? () {}
-                    : _saveMedicine,
+                onPressed: isSaving ? () {} : _saveMedicine,
               ),
 
               const SizedBox(height: 20),

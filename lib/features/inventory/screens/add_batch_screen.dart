@@ -36,8 +36,9 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
 
   bool isSaving = false;
   bool isLoading = true;
-
   bool useCustomPrice = false;
+
+  String? initializationError;
 
   @override
   void initState() {
@@ -50,20 +51,28 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
   }
 
   Future<void> _initializeBatch() async {
-    await batchService.openBox();
+    try {
+      await batchService.openBox();
 
-    final nextBatchNumber = batchService.getNextBatchNumber(
-      widget.medicine.id,
-    );
+      final nextBatchNumber = batchService.getNextBatchNumber(
+        widget.medicine.id,
+      );
 
-    if (!mounted) {
-      return;
+      if (!mounted) return;
+
+      setState(() {
+        batchNumberController.text = nextBatchNumber.toString();
+        isLoading = false;
+        initializationError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        initializationError = e.toString();
+        isLoading = false;
+      });
     }
-
-    setState(() {
-      batchNumberController.text = nextBatchNumber.toString();
-      isLoading = false;
-    });
   }
 
   @override
@@ -71,20 +80,21 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     batchNumberController.dispose();
     quantityController.dispose();
     priceController.dispose();
+
     super.dispose();
   }
 
   Future<void> _selectExpiryDate() async {
+    final now = DateTime.now();
+
     final DateTime? selectedDate = await showDatePicker(
       context: context,
-      firstDate: DateTime.now(),
+      firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(2100),
-      initialDate: DateTime.now(),
+      initialDate: DateTime(now.year, now.month, now.day),
     );
 
-    if (selectedDate == null) {
-      return;
-    }
+    if (selectedDate == null || !mounted) return;
 
     setState(() {
       expiryDate = selectedDate;
@@ -102,7 +112,39 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     });
   }
 
+  String? _validateQuantity(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter quantity';
+    }
+
+    final quantity = int.tryParse(value.trim());
+
+    if (quantity == null || quantity < 0) {
+      return 'Please enter a valid quantity';
+    }
+
+    return null;
+  }
+
+  String? _validatePrice(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter price';
+    }
+
+    final price = double.tryParse(value.trim());
+
+    if (price == null || !price.isFinite || price < 0) {
+      return 'Please enter a valid price';
+    }
+
+    return null;
+  }
+
   Future<void> _saveBatch() async {
+    if (isSaving || isLoading || initializationError != null) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -124,23 +166,17 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       await batchService.openBox();
 
       final batch = MedicineBatch(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
         medicineId: widget.medicine.id,
         batchNumber: batchNumberController.text.trim(),
-        quantity: int.parse(
-          quantityController.text.trim(),
-        ),
+        quantity: int.parse(quantityController.text.trim()),
         expiryDate: expiryDate!,
-        purchasePrice: double.parse(
-          priceController.text.trim(),
-        ),
+        purchasePrice: double.parse(priceController.text.trim()),
       );
 
       await batchService.addBatch(batch);
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -150,15 +186,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
 
       Navigator.pop(context);
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Failed to save batch: $e',
-          ),
+          content: Text('Failed to save batch: $e'),
         ),
       );
     } finally {
@@ -185,6 +217,54 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         ),
         body: const Center(
           child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (initializationError != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Add Batch'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Unable to initialize batch',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  initializationError!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      isLoading = true;
+                      initializationError = null;
+                    });
+
+                    _initializeBatch();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -220,7 +300,6 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
 
               const SizedBox(height: 28),
 
-              // Automatically generated batch number.
               TextFormField(
                 controller: batchNumberController,
                 readOnly: true,
@@ -244,26 +323,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                 hintText: 'Enter stock quantity',
                 prefixIcon: Icons.inventory_2_outlined,
                 keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter quantity';
-                  }
-
-                  final quantity = int.tryParse(
-                    value.trim(),
-                  );
-
-                  if (quantity == null || quantity < 0) {
-                    return 'Please enter a valid quantity';
-                  }
-
-                  return null;
-                },
+                validator: _validateQuantity,
               ),
 
               const SizedBox(height: 18),
 
-              // Batch price.
               TextFormField(
                 controller: priceController,
                 readOnly: !useCustomPrice,
@@ -281,21 +345,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter price';
-                  }
-
-                  final price = double.tryParse(
-                    value.trim(),
-                  );
-
-                  if (price == null || price < 0) {
-                    return 'Please enter a valid price';
-                  }
-
-                  return null;
-                },
+                validator: _validatePrice,
               ),
 
               const SizedBox(height: 8),
@@ -305,17 +355,13 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                   Checkbox(
                     value: useCustomPrice,
                     onChanged: (value) {
-                      _toggleCustomPrice(
-                        value ?? false,
-                      );
+                      _toggleCustomPrice(value ?? false);
                     },
                   ),
                   const Expanded(
                     child: Text(
                       'Change price for this batch',
-                      style: TextStyle(
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(fontSize: 14),
                     ),
                   ),
                 ],
@@ -333,7 +379,6 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
 
               const SizedBox(height: 18),
 
-              // Expiry date.
               InkWell(
                 onTap: _selectExpiryDate,
                 borderRadius: BorderRadius.circular(14),
@@ -365,9 +410,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
               CustomButton(
                 text: isSaving ? 'Saving...' : 'Save Batch',
                 icon: Icons.save_outlined,
-                onPressed: isSaving
-                    ? () {}
-                    : _saveBatch,
+                onPressed: isSaving ? () {} : _saveBatch,
               ),
 
               const SizedBox(height: 20),

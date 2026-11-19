@@ -22,12 +22,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final TextEditingController searchController =
   TextEditingController();
 
+  late Future<void> _initializationFuture;
+
   String searchQuery = '';
-
   String selectedStockFilter = 'All';
-
   String selectedExpiryFilter = 'All';
   String selectedSortOption = 'Name (A–Z)';
+
   final List<String> stockFilters = [
     'All',
     'In Stock',
@@ -43,6 +44,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     '61–90 Days',
     'Safe',
   ];
+
   final List<String> sortOptions = [
     'Name (A–Z)',
     'Name (Z–A)',
@@ -58,12 +60,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.initState();
 
     searchController.addListener(_onSearchChanged);
+
+    _initializationFuture = _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    await Future.wait([
+      medicineService.openBox(),
+      batchService.openBox(),
+    ]);
   }
 
   void _onSearchChanged() {
     setState(() {
-      searchQuery =
-          searchController.text.trim().toLowerCase();
+      searchQuery = searchController.text.trim().toLowerCase();
     });
   }
 
@@ -71,6 +81,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
+
     super.dispose();
   }
 
@@ -82,16 +93,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {});
   }
 
-  Future<void> _openEditMedicine(
-      Medicine medicine,
-      ) async {
+  Future<void> _openEditMedicine(Medicine medicine) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -101,16 +108,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {});
   }
 
-  Future<void> _openMedicineDetails(
-      Medicine medicine,
-      ) async {
+  Future<void> _openMedicineDetails(Medicine medicine) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -120,24 +123,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {});
   }
 
-  Future<void> _deleteMedicine(
-      Medicine medicine,
-      ) async {
+  Future<void> _deleteMedicine(Medicine medicine) async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Delete Medicine'),
           content: Text(
-            'Are you sure you want to delete '
-                '${medicine.name}?',
+            'Are you sure you want to delete ${medicine.name}?\n\n'
+                'All associated batches will also be deleted.',
           ),
           actions: [
             TextButton(
@@ -152,9 +151,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               },
               child: const Text(
                 'Delete',
-                style: TextStyle(
-                  color: Colors.red,
-                ),
+                style: TextStyle(color: Colors.red),
               ),
             ),
           ],
@@ -162,41 +159,44 @@ class _InventoryScreenState extends State<InventoryScreen> {
       },
     );
 
-    if (shouldDelete != true) {
-      return;
+    if (shouldDelete != true) return;
+
+    try {
+      final batches =
+      batchService.getBatchesForMedicine(medicine.id);
+
+      for (final batch in batches) {
+        await batchService.deleteBatch(batch.id);
+      }
+
+      await medicineService.box.delete(medicine.id);
+
+      if (!mounted) return;
+
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Medicine and its batches deleted'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete medicine: $e'),
+        ),
+      );
     }
-
-    await medicineService.box.delete(
-      medicine.id,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {});
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Medicine deleted'),
-      ),
-    );
   }
 
   bool _matchesSearch(Medicine medicine) {
-    if (searchQuery.isEmpty) {
-      return true;
-    }
+    if (searchQuery.isEmpty) return true;
 
-    return medicine.name
-        .toLowerCase()
-        .contains(searchQuery) ||
-        medicine.genericName
-            .toLowerCase()
-            .contains(searchQuery) ||
-        medicine.manufacturer
-            .toLowerCase()
-            .contains(searchQuery);
+    return medicine.name.toLowerCase().contains(searchQuery) ||
+        medicine.genericName.toLowerCase().contains(searchQuery) ||
+        medicine.manufacturer.toLowerCase().contains(searchQuery);
   }
 
   bool _matchesStockFilter(
@@ -221,49 +221,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  bool _matchesExpiryFilter(
-      List<MedicineBatch> batches,
-      ) {
-    if (selectedExpiryFilter == 'All') {
-      return true;
-    }
+  bool _matchesExpiryFilter(List<MedicineBatch> batches) {
+    if (selectedExpiryFilter == 'All') return true;
 
-    // A medicine can contain multiple batches.
-    // We use the earliest expiry date for filtering.
-    if (batches.isEmpty) {
-      return false;
-    }
+    if (batches.isEmpty) return false;
 
     final sortedBatches = [...batches]
       ..sort(
-            (a, b) => a.expiryDate.compareTo(
-          b.expiryDate,
-        ),
+            (a, b) => a.expiryDate.compareTo(b.expiryDate),
       );
 
-    final DateTime earliestExpiry =
-        sortedBatches.first.expiryDate;
+    final earliestExpiry = sortedBatches.first.expiryDate;
 
-    final int daysRemaining =
-    ExpiryUtils.daysRemaining(
-      earliestExpiry,
-    );
+    final daysRemaining =
+    ExpiryUtils.daysRemaining(earliestExpiry);
 
     switch (selectedExpiryFilter) {
       case 'Expired':
         return daysRemaining < 0;
 
       case '≤30 Days':
-        return daysRemaining >= 0 &&
-            daysRemaining <= 30;
+        return daysRemaining >= 0 && daysRemaining <= 30;
 
       case '31–60 Days':
-        return daysRemaining >= 31 &&
-            daysRemaining <= 60;
+        return daysRemaining >= 31 && daysRemaining <= 60;
 
       case '61–90 Days':
-        return daysRemaining >= 61 &&
-            daysRemaining <= 90;
+        return daysRemaining >= 61 && daysRemaining <= 90;
 
       case 'Safe':
         return daysRemaining > 90;
@@ -277,10 +261,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Icon? _getExpiryIcon(String filter) {
     switch (filter) {
       case 'Expired':
-        return const Icon(
-          Icons.error_outline,
-          size: 18,
-        );
+        return const Icon(Icons.error_outline, size: 18);
 
       case '≤30 Days':
         return const Icon(
@@ -289,10 +270,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
 
       case '31–60 Days':
-        return const Icon(
-          Icons.schedule,
-          size: 18,
-        );
+        return const Icon(Icons.schedule, size: 18);
 
       case '61–90 Days':
         return const Icon(
@@ -311,6 +289,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
         return null;
     }
   }
+
+  int _getStock(Medicine medicine) {
+    return batchService
+        .getBatchesForMedicine(medicine.id)
+        .fold<int>(
+      0,
+          (total, batch) => total + batch.quantity,
+    );
+  }
+
+  DateTime _getEarliestExpiry(Medicine medicine) {
+    final batches =
+    batchService.getBatchesForMedicine(medicine.id);
+
+    if (batches.isEmpty) {
+      return DateTime(9999);
+    }
+
+    return batches
+        .map((batch) => batch.expiryDate)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+  }
+
   void _sortMedicines(List<Medicine> medicines) {
     medicines.sort((a, b) {
       switch (selectedSortOption) {
@@ -345,34 +346,211 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
   }
 
-  int _getStock(Medicine medicine) {
-    return batchService
-        .getBatchesForMedicine(medicine.id)
-        .fold<int>(0, (total, batch) => total + batch.quantity);
+  Widget _buildInventoryContent() {
+    final allMedicines = medicineService.box.values.toList();
+
+    final medicines = allMedicines.where((medicine) {
+      final batches =
+      batchService.getBatchesForMedicine(medicine.id);
+
+      final totalStock = batches.fold<int>(
+        0,
+            (total, batch) => total + batch.quantity,
+      );
+
+      return _matchesSearch(medicine) &&
+          _matchesStockFilter(medicine, totalStock) &&
+          _matchesExpiryFilter(batches);
+    }).toList();
+
+    _sortMedicines(medicines);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inventory'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: searchController,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search medicines...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: searchQuery.isNotEmpty
+                    ? IconButton(
+                  onPressed: searchController.clear,
+                  icon: const Icon(Icons.clear),
+                )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+
+          SizedBox(
+            height: 48,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: stockFilters.length,
+              separatorBuilder: (context, index) =>
+              const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final filter = stockFilters[index];
+
+                return FilterChip(
+                  label: Text(filter),
+                  selected: selectedStockFilter == filter,
+                  onSelected: (_) {
+                    setState(() {
+                      selectedStockFilter = filter;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          SizedBox(
+            height: 48,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: expiryFilters.length,
+              separatorBuilder: (context, index) =>
+              const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final filter = expiryFilters[index];
+
+                return FilterChip(
+                  avatar: _getExpiryIcon(filter),
+                  label: Text(filter),
+                  selected: selectedExpiryFilter == filter,
+                  onSelected: (_) {
+                    setState(() {
+                      selectedExpiryFilter = filter;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedSortOption,
+              decoration: InputDecoration(
+                labelText: 'Sort inventory by',
+                prefixIcon: const Icon(Icons.sort),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+              items: sortOptions.map((option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(option),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+
+                setState(() {
+                  selectedSortOption = value;
+                });
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Expanded(
+            child: medicines.isEmpty
+                ? Center(
+              child: Text(
+                searchQuery.isEmpty &&
+                    selectedStockFilter == 'All' &&
+                    selectedExpiryFilter == 'All'
+                    ? 'No medicines added yet'
+                    : 'No medicines found',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+              ),
+              itemCount: medicines.length,
+              itemBuilder: (context, index) {
+                final medicine = medicines[index];
+
+                final batches =
+                batchService.getBatchesForMedicine(
+                  medicine.id,
+                );
+
+                final totalStock = batches.fold<int>(
+                  0,
+                      (total, batch) => total + batch.quantity,
+                );
+
+                final isLowStock =
+                    totalStock <= medicine.minimumStock;
+
+                return _MedicineCard(
+                  medicine: medicine,
+                  totalStock: totalStock,
+                  batchCount: batches.length,
+                  isLowStock: isLowStock,
+                  onEdit: () {
+                    _openEditMedicine(medicine);
+                  },
+                  onDelete: () {
+                    _deleteMedicine(medicine);
+                  },
+                  onTap: () {
+                    _openMedicineDetails(medicine);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddMedicine,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Medicine'),
+      ),
+    );
   }
 
-  DateTime _getEarliestExpiry(Medicine medicine) {
-    final batches =
-    batchService.getBatchesForMedicine(medicine.id);
-
-    if (batches.isEmpty) {
-      return DateTime(9999);
-    }
-
-    return batches
-        .map((batch) => batch.expiryDate)
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-  }
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.wait([
-        medicineService.openBox(),
-        batchService.openBox(),
-      ]),
+    return FutureBuilder<void>(
+      future: _initializationFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState !=
-            ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(),
@@ -380,279 +558,53 @@ class _InventoryScreenState extends State<InventoryScreen> {
           );
         }
 
-        final allMedicines =
-        medicineService.box.values.toList();
-
-        final medicines = allMedicines.where(
-              (medicine) {
-            final batches =
-            batchService.getBatchesForMedicine(
-              medicine.id,
-            );
-
-            final int totalStock =
-            batches.fold<int>(
-              0,
-                  (total, batch) {
-                return total + batch.quantity;
-              },
-            );
-
-            return _matchesSearch(medicine) &&
-                _matchesStockFilter(
-                  medicine,
-                  totalStock,
-                ) &&
-                _matchesExpiryFilter(
-                  batches,
-                );
-          },
-        ).toList();
-
-        // Sort the medicines after applying search and filters.
-        _sortMedicines(medicines);
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Inventory'),
-          ),
-
-          body: Column(
-            children: [
-              // Search
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: searchController,
-                  textInputAction:
-                  TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: 'Search medicines...',
-                    prefixIcon: const Icon(
-                      Icons.search,
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Inventory'),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
                     ),
-                    suffixIcon:
-                    searchQuery.isNotEmpty
-                        ? IconButton(
-                      onPressed: () {
-                        searchController
-                            .clear();
-                      },
-                      icon: const Icon(
-                        Icons.clear,
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Unable to load inventory',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                    )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
                     ),
-                  ),
-                ),
-              ),
-
-              // Stock filters
-              SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 16,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: stockFilters.length,
-                  separatorBuilder:
-                      (context, index) {
-                    return const SizedBox(
-                      width: 8,
-                    );
-                  },
-                  itemBuilder: (context, index) {
-                    final String filter =
-                    stockFilters[index];
-
-                    final bool isSelected =
-                        selectedStockFilter ==
-                            filter;
-
-                    return FilterChip(
-                      label: Text(filter),
-                      selected: isSelected,
-                      onSelected: (_) {
+                    const SizedBox(height: 8),
+                    Text(
+                      '${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
                         setState(() {
-                          selectedStockFilter =
-                              filter;
+                          _initializationFuture =
+                              _initializeServices();
                         });
                       },
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Expiry filters
-              SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 16,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: expiryFilters.length,
-                  separatorBuilder:
-                      (context, index) {
-                    return const SizedBox(
-                      width: 8,
-                    );
-                  },
-                  itemBuilder: (context, index) {
-                    final String filter =
-                    expiryFilters[index];
-
-                    final bool isSelected =
-                        selectedExpiryFilter ==
-                            filter;
-
-                    return FilterChip(
-                      avatar: _getExpiryIcon(filter),
-                      label: Text(filter),
-                      selected: isSelected,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedExpiryFilter =
-                              filter;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Sorting options
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: DropdownButtonFormField<String>(
-                  initialValue: selectedSortOption,
-                  decoration: InputDecoration(
-                    labelText: 'Sort inventory by',
-                    prefixIcon: const Icon(Icons.sort),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      child: const Text('Retry'),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                  items: sortOptions.map((option) {
-                    return DropdownMenuItem<String>(
-                      value: option,
-                      child: Text(option),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      selectedSortOption = value;
-                    });
-                  },
+                  ],
                 ),
               ),
+            ),
+          );
+        }
 
-              const SizedBox(height: 8),
-
-              // Medicine list
-              Expanded(
-                child: medicines.isEmpty
-                    ? Center(
-                  child: Text(
-                    searchQuery.isEmpty &&
-                        selectedStockFilter ==
-                            'All' &&
-                        selectedExpiryFilter ==
-                            'All'
-                        ? 'No medicines added yet'
-                        : 'No medicines found',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                )
-                    : ListView.builder(
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 16,
-                  ),
-                  itemCount: medicines.length,
-                  itemBuilder:
-                      (context, index) {
-                    final Medicine medicine =
-                    medicines[index];
-
-                    final batches =
-                    batchService
-                        .getBatchesForMedicine(
-                      medicine.id,
-                    );
-
-                    final int totalStock =
-                    batches.fold<int>(
-                      0,
-                          (total, batch) {
-                        return total +
-                            batch.quantity;
-                      },
-                    );
-
-                    final bool isLowStock =
-                        totalStock <=
-                            medicine.minimumStock;
-
-                    return _MedicineCard(
-                      medicine: medicine,
-                      totalStock: totalStock,
-                      batchCount:
-                      batches.length,
-                      isLowStock:
-                      isLowStock,
-                      onEdit: () {
-                        _openEditMedicine(
-                          medicine,
-                        );
-                      },
-                      onDelete: () {
-                        _deleteMedicine(
-                          medicine,
-                        );
-                      },
-                      onTap: () {
-                        _openMedicineDetails(
-                          medicine,
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          // Add medicine
-          floatingActionButton:
-          FloatingActionButton.extended(
-            onPressed: _openAddMedicine,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Medicine'),
-          ),
-        );
+        return _buildInventoryContent();
       },
     );
   }
@@ -680,28 +632,18 @@ class _MedicineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding:
-        const EdgeInsets.all(14),
-
+        contentPadding: const EdgeInsets.all(14),
         onTap: onTap,
-
         leading: CircleAvatar(
           backgroundColor:
-          isLowStock
-              ? Colors.orange.shade100
-              : null,
+          isLowStock ? Colors.orange.shade100 : null,
           child: Icon(
             Icons.medication_outlined,
-            color: isLowStock
-                ? Colors.orange.shade800
-                : null,
+            color: isLowStock ? Colors.orange.shade800 : null,
           ),
         ),
-
         title: Text(
           medicine.name,
           style: const TextStyle(
@@ -709,21 +651,15 @@ class _MedicineCard extends StatelessWidget {
             fontSize: 17,
           ),
         ),
-
         subtitle: Padding(
-          padding: const EdgeInsets.only(
-            top: 6,
-          ),
+          padding: const EdgeInsets.only(top: 6),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '₹${medicine.sellingPrice.toStringAsFixed(2)}',
               ),
-
               const SizedBox(height: 4),
-
               Row(
                 children: [
                   Icon(
@@ -735,9 +671,7 @@ class _MedicineCard extends StatelessWidget {
                         ? Colors.orange
                         : Colors.green,
                   ),
-
                   const SizedBox(width: 4),
-
                   Text(
                     'Stock: $totalStock',
                     style: TextStyle(
@@ -746,35 +680,26 @@ class _MedicineCard extends StatelessWidget {
                           : isLowStock
                           ? Colors.orange
                           : Colors.green,
-                      fontWeight:
-                      FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Icon(
                     Icons.layers_outlined,
                     size: 15,
-                    color:
-                    Colors.grey.shade600,
+                    color: Colors.grey.shade600,
                   ),
-
                   const SizedBox(width: 4),
-
                   Text(
                     'Batches: $batchCount',
                     style: TextStyle(
-                      color:
-                      Colors.grey.shade600,
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ],
               ),
-
               if (isLowStock) ...[
                 const SizedBox(height: 6),
-
                 Row(
                   children: [
                     const Icon(
@@ -782,16 +707,12 @@ class _MedicineCard extends StatelessWidget {
                       size: 16,
                       color: Colors.orange,
                     ),
-
                     const SizedBox(width: 4),
-
                     Text(
-                      'Low Stock • Minimum: '
-                          '${medicine.minimumStock}',
+                      'Low Stock • Minimum: ${medicine.minimumStock}',
                       style: const TextStyle(
                         color: Colors.orange,
-                        fontWeight:
-                        FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -800,9 +721,7 @@ class _MedicineCard extends StatelessWidget {
             ],
           ),
         ),
-
-        trailing:
-        PopupMenuButton<String>(
+        trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'edit') {
               onEdit();
@@ -810,21 +729,17 @@ class _MedicineCard extends StatelessWidget {
               onDelete();
             }
           },
-
           itemBuilder: (context) => const [
             PopupMenuItem<String>(
               value: 'edit',
               child: Row(
                 children: [
-                  Icon(
-                    Icons.edit_outlined,
-                  ),
+                  Icon(Icons.edit_outlined),
                   SizedBox(width: 10),
                   Text('Edit'),
                 ],
               ),
             ),
-
             PopupMenuItem<String>(
               value: 'delete',
               child: Row(
