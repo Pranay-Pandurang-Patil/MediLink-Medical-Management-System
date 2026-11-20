@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  🚧 <b>Currently Under Active Development</b>
+  A Smart, Offline-First Solution for Medical Shop Management
 </p>
 
 ---
@@ -14,11 +14,27 @@
 
 **MediLink** is a Flutter-based medical shop management application designed to simplify the daily operations of an individual medical shop.
 
-The application provides a centralized platform for managing medicine inventory, tracking batches and expiry dates, monitoring stock levels, maintaining customer records, recording payments, and organizing daily shop notes.
+It provides a centralized platform for managing medicine inventory, tracking batches and expiry dates, monitoring stock levels, maintaining customer records, recording payments, and organizing daily shop notes.
 
-MediLink is designed around a **single-store owner management model**, with a focus on practical functionality, reliable data management, and a clean user experience.
+MediLink follows a **single-store owner management model**, focusing on practical functionality, reliable data management, offline accessibility, and a clean user experience.
 
-The project is being developed using Flutter, Firebase Authentication, and Hive local storage.
+The application uses Flutter, Firebase Authentication, and Hive local storage.
+
+---
+
+## 📸 Application Screenshots
+
+### Login Screen
+
+<p align="center">
+  <img src="assets/loginpage.png" alt="MediLink Login Screen" width="300">
+</p>
+
+### Main Dashboard
+
+<p align="center">
+  <img src="assets/dashboard1.png" alt="MediLink Main Dashboard" width="300">
+</p>
 
 ---
 
@@ -32,71 +48,84 @@ The project is being developed using Flutter, Firebase Authentication, and Hive 
 - Record frequently purchased medicines.
 - Manage customer payment records and outstanding balances.
 - Maintain daily shop notes.
-- Support local access to essential medicine and inventory data.
+- Provide offline access to essential inventory information.
 
 ---
 
-## ✨ Current Development Progress
+## ✨ Features
 
 ### 1. Application Foundation
-- ✅ Flutter project initialized.
-- ✅ Project structure established.
-- ✅ Material 3 theme configuration.
-- ✅ Custom application logo.
-- ✅ Assets organization.
-- ✅ Animated splash screen using Lottie.
-- ✅ Login and registration screen flow.
-- ✅ Main application navigation.
+
+- Flutter application architecture.
+- Material Design 3 theme.
+- Custom application branding and logo.
+- Animated splash screen using Lottie.
+- Login and registration flow.
+- Main application navigation.
+- Firebase Authentication integration.
 
 ### 2. Dashboard
-- ✅ Dashboard screen.
-- ✅ Medicine and inventory overview.
-- 🔄 Further dashboard refinements.
+
+- Dashboard overview.
+- Medicine and inventory summary.
+- Store information overview.
 
 ### 3. Medicine & Inventory Management
-- ✅ Medicine CRUD operations.
-- ✅ Medicine search.
-- ✅ Medicine information management.
-- ✅ Batch-wise inventory structure.
-- ✅ Stock tracking.
-- ✅ Low-stock and out-of-stock monitoring.
-- ✅ Expiry tracking and alert structure.
-- 🔄 Further inventory testing and refinements.
+
+- Add, edit, and delete medicines.
+- Medicine search.
+- Medicine information management.
+- Batch-wise inventory structure.
+- Stock tracking.
+- Low-stock monitoring.
+- Out-of-stock monitoring.
+- Medicine expiry tracking.
 
 ### 4. Alerts
-- ✅ Low-stock alert functionality.
-- ✅ Out-of-stock monitoring.
-- ✅ Medicine expiry alert categories.
-- ✅ 30-day, 60-day and 90-day expiry monitoring.
-- 🔄 Notification and alert refinements.
+
+- Low-stock alerts.
+- Out-of-stock monitoring.
+- Medicine expiry alert categories.
+- 30-day, 60-day, and 90-day expiry monitoring.
 
 ### 5. Shop Profile
-- ✅ Shop profile section.
-- 🔄 Additional profile refinements.
+
+- Shop profile management.
+- Store information management.
 
 ### 6. Daily Notes
-- ✅ Add notes.
-- ✅ Edit notes.
-- ✅ Delete notes.
-- ✅ Hive-based persistence.
-- ✅ Reactive note list updates.
+
+- Add notes.
+- Edit notes.
+- Delete notes.
+- Hive-based persistence.
+- Reactive note list updates.
 
 ### 7. Regular Customers
-- ✅ Add customer information.
-- ✅ Edit customer information.
-- ✅ Delete customer records.
-- ✅ Customer search.
-- ✅ Reactive customer list updates.
-- ✅ Customer-specific medicine records.
+
+- Add customer information.
+- Edit customer information.
+- Delete customer records.
+- Customer search.
+- Reactive customer list updates.
+- Customer-specific medicine records.
 
 ### 8. Customer Payment Management
-- ✅ Add payment records.
-- ✅ Edit payment records.
-- ✅ Delete payment records.
-- ✅ Payment status tracking.
-- ✅ Total, paid and remaining amount summary.
-- ✅ Outstanding balance calculation.
-- ✅ Payment data validation improvements.
+
+- Add payment records.
+- Edit payment records.
+- Delete payment records.
+- Payment status tracking.
+- Total, paid, and remaining amount summaries.
+- Outstanding balance calculation.
+- Payment data validation.
+
+### 9. Data Management
+
+- CSV import and export.
+- Application backup.
+- Backup restoration.
+- Local data persistence using Hive.
 
 ---
 
@@ -117,24 +146,27 @@ The project is being developed using Flutter, Firebase Authentication, and Hive 
 
 ## 🗄️ Data Management
 
-MediLink uses a combination of Firebase Authentication and Hive local storage.
+MediLink uses Firebase Authentication alongside Hive local storage.
 
 ### Firebase Authentication
-Used for owner account authentication and account access.
+
+Used for owner account registration, login, and authentication.
 
 ### Hive Local Storage
-Used for storing application data such as:
+
+Used to store application information, including:
 
 - Medicine information.
 - Medicine batches.
 - Stock information.
 - Expiry-related records.
-- Shop information and Daily notes.
+- Shop profile information.
+- Daily notes.
 - Regular customer records.
 - Customer medicine records.
 - Customer payment records.
 
-Essential medicine with inventory data is designed to remain accessible offline.
+The application follows an **offline-first approach**, allowing essential medicine and inventory information to remain accessible locally.
 
 ---
 
@@ -148,32 +180,33 @@ Essential medicine with inventory data is designed to remain accessible offline.
 | Alerts | Expiry and stock monitoring |
 | Daily Notes | Store-related notes |
 | Regular Customers | Customer information |
-| Customer Medicines | Frequently purchased medicines |
+| Customer Medicines | Customer-specific medicine records |
 | Payment Management | Customer payment records and balances |
 | Profile | Shop information |
+| Backup & Restore | Local application data backup and restoration |
 
 ---
 
-## 🚀 Development Roadmap
+## 🔮 Future Improvements
 
-| Phase | Planned Work | Status |
-|---|---|---|
-| 1 | Application foundation and authentication | 🟡 Implemented; further verification |
-| 2 | Medicine inventory and batch management | 🟡 Implemented; refinements ongoing |
-| 3 | Expiry and stock alerts | 🟡 Implemented; testing ongoing |
-| 4 | Daily Notes | ✅ Implemented |
-| 5 | Regular Customers | ✅ Implemented |
-| 6 | Customer medicines and payment management | ✅ Implemented |
-| 7 | CSV import and export | ✅ Implemented|
-| 8 | Backup and restore | ✅ Implemented |
-| 9 | Functional testing and UI/UX refinement | 🔄 Ongoing |
-| 10 | Documentation and production preparation | 🔄 Planned |
+The following enhancements can further improve MediLink:
+
+- [ ] Push notifications for medicine expiry and low-stock alerts.
+- [ ] Enhanced dashboard with additional inventory insights.
+- [ ] Advanced medicine search and filtering.
+- [ ] Improved backup and restoration options.
+- [ ] Enhanced application security.
+- [ ] Additional data validation and integrity checks.
+- [ ] UI/UX improvements and accessibility enhancements.
+- [ ] Performance optimization.
+- [ ] Comprehensive application testing.
+- [ ] Production-ready Android release.
 
 ---
 
-## 🧪 Development & Testing
+## 🧪 Testing & Quality
 
-MediLink is being developed incrementally, with attention to:
+Important application testing areas include:
 
 - Form validation.
 - Medicine and batch data consistency.
@@ -183,9 +216,10 @@ MediLink is being developed incrementally, with attention to:
 - Outstanding balance accuracy.
 - Reactive UI updates.
 - Expiry and stock alert accuracy.
+- Backup and restoration.
 - Application stability.
 
-Static analysis is performed using:
+Static analysis can be performed using:
 
 ```bash
 flutter analyze
@@ -211,7 +245,7 @@ flutter analyze
 git clone https://github.com/Pranay-Pandurang-Patil/medilink.git
 ```
 
-**2. Navigate to the project**
+**2. Navigate to the project directory**
 
 ```bash
 cd medilink
@@ -233,17 +267,7 @@ Configure the required Firebase project and platform-specific authentication set
 flutter run
 ```
 
-**Note:** This public repository is a showcase version. Selected production implementation, configuration files, and business logic are intentionally excluded. Consequently the public repository may not be independently runnable.
-
----
-
-## 📌 Project Status
-
-MediLink is actively under development.
-
-The project has progressed from its initial Flutter foundation to medicine inventory management, customer management, daily notes, and payment tracking.
-
-Current development is focused on improving data integrity, validating existing functionality, refining the user experience, and preparing the application for a stable release.
+> **Note:** This is a public showcase repository. Selected production implementation, configuration files, and business logic are intentionally excluded. Therefore, this repository may not be independently runnable.
 
 ---
 
@@ -259,9 +283,9 @@ GitHub: [Pranay-Pandurang-Patil](https://github.com/Pranay-Pandurang-Patil)
 
 ## 🤝 Contributions & Feedback
 
-MediLink is currently a personal learning and portfolio project.
+MediLink is an individual portfolio project.
 
-Suggestions and constructive feedback are welcome.
+Suggestions and constructive feedback are welcome. However, permission must be obtained before using or reproducing any part of the project.
 
 ---
 
@@ -269,16 +293,31 @@ Suggestions and constructive feedback are welcome.
 
 © 2026 Pranay Patil. All rights reserved.
 
-MediLink is a proprietary portfolio project.
+**MediLink is a proprietary software and portfolio project.**
 
-The public repository is provided for portfolio viewing, educational review, and project evaluation purposes.
+This public repository is provided for portfolio presentation, educational review, and project evaluation purposes only.
 
-The source code, project structure, original implementation, and assets may not be copied, redistributed, commercially reused, or used to create derivative applications without prior written permission.
+### Unauthorized Use Prohibited
 
-See the [LICENSE](LICENSE) file for the complete terms.
+Without prior written permission from the author, no individual, organization, or third party is permitted to:
 
-> **Public Showcase Notice:**  
-> This repository represents the public showcase version of MediLink. Selected production implementation, configuration files, and business logic are intentionally excluded.
+- Copy, reproduce, or redistribute the source code.
+- Reuse, modify, or republish the original implementation.
+- Copy or reuse project assets, branding, logos, or designs.
+- Publish this project or substantial portions of it as their own work.
+- Create derivative applications using the original implementation.
+- Use any part of the project for commercial purposes.
+- Remove or modify copyright and ownership notices.
+
+**Public availability does not grant permission to copy, reuse, modify, distribute, or commercially exploit this project.**
+
+All rights to the original implementation, project structure, branding, and assets remain with the author.
+
+For permissions or licensing inquiries, contact the author through GitHub.
+
+See the [LICENSE](LICENSE) file for additional terms.
+
+> **Public Showcase Notice:** This repository represents the public showcase version of MediLink. Selected production implementation, configuration files, and business logic are intentionally excluded. The complete project implementation is maintained in a private repository.
 
 ---
 
@@ -286,4 +325,4 @@ See the [LICENSE](LICENSE) file for the complete terms.
 
 If you find MediLink interesting, consider giving the repository a ⭐ on GitHub.
 
-Your support motivates continued development.
+Your support is appreciated!
