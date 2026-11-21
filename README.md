@@ -317,7 +317,7 @@ For permissions or licensing inquiries, contact the author through GitHub.
 
 See the [LICENSE](LICENSE) file for additional terms.
 
-> **Public Showcase Notice:** This repository represents the public showcase version of MediLink. Selected production implementation, configuration files, and business logic are intentionally excluded. The complete project implementation is maintained in a private repository.
+> **Public Showcase Notice:** This repository represents the public showcase version of MediLink.Please note that selected production implementation, configuration files, and business logic are intentionally excluded. The complete project implementation is maintained in a private repository.
 
 ---
 
